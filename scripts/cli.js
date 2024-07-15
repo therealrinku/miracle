@@ -68,5 +68,4 @@ function run() {
 
 (async function main() {
   run();
-  console.log();
 })();
