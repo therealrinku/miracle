@@ -1,9 +1,20 @@
 const process = require("process");
 const sqlite3 = require("sqlite3").verbose();
 
-const db = new sqlite3.Database("./db.sqlite3", (err) => {});
+const db = new sqlite3.Database("./db.sqlite3");
 
 db.exec(`CREATE TABLE if not exists store( key string, value string)`);
+
+async function executeDbCommand(sql, params = [], type = "run") {
+  return new Promise((resolve, reject) => {
+    db[type](sql, params, (err, row) => {
+      if (err) {
+        reject(err);
+      }
+      resolve(row);
+    });
+  });
+}
 
 function printHelp() {
   process.stdout.write("------------------------------\n");
@@ -11,58 +22,41 @@ function printHelp() {
   process.stdout.write("usage: robocli [options]\n");
   process.stdout.write("options:\n");
   process.stdout.write(
-    "  w [key] [value] - write a value to the key(override if key exists)\n",
+    "  [key] [value] - write a value to the key(overrides)\n",
   );
-  process.stdout.write("  g [key] - get a value of given key\n");
+  process.stdout.write("  [key] - get a value of given key\n");
 }
 
-function run() {
+async function run() {
   const argvs = process.argv.slice(2);
-  if (argvs[0] === "g") {
-    if (!argvs[1]) {
-      process.stdout.write("Please provide a key to get the value\n");
+
+  if (argvs.length === 2) {
+    try {
+      // const gSql = `SELECT value from store where key = ?`;
+      // const row = await executeDbCommand(gSql, [argvs[0]], "get");
+
+      const wSql = `INSERT OR REPLACE INTO store(key,value) VALUES(?,?)`;
+      await executeDbCommand(wSql, [argvs[0], argvs[1]]);
+      process.stdout.write("Value written successfully\n");
       return;
-    } else {
-      db.get(
-        `SELECT value from store where key = ?`,
-        [argvs[1]],
-        (err, row) => {
-          if (row) {
-            process.stdout.write(`${row.value}\n`);
-            return;
-          } else {
-            process.stdout.write("No value found for the key\n");
-            return;
-          }
-        },
-      );
-    }
-  } else if (argvs[0] === "w") {
-    if (!argvs[1] || !argvs[2]) {
-      process.stdout.write("Please provide a key and value to write\n");
+    } catch (err) {
+      process.stdout.write(`Error writing the key: ${err}\n`);
       return;
-    } else {
-      const args = [argvs[1], argvs[2]];
-      db.run(
-        `INSERT OR REPLACE INTO store(key,value) VALUES(?,?)`,
-        args,
-        (err) => {
-          if (err) {
-            process.stdout.write("Error writing to database\n");
-            return;
-          }
-          process.stdout.write("Value written successfully\n");
-          return;
-        },
-      );
     }
-  } else if (argvs[0] === "--help" || !argvs[0]) {
+  } else if (argvs.length === 1 && argvs[0] !== "--help") {
+    try {
+      const sql = `SELECT value from store where key = ?`;
+      const row = await executeDbCommand(sql, [argvs[0]], "get");
+      process.stdout.write(`${row.value}\n`);
+    } catch (err) {
+      process.stdout.write(`Error getting the value: ${err}\n`);
+      return;
+    }
+  } else if (argvs[0] === "--help") {
     printHelp();
-    return;
   } else {
     process.stdout.write("Invalid command\n");
     printHelp();
-    return;
   }
 }
 
