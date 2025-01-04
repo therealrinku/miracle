@@ -48,7 +48,7 @@ async function run() {
       const sql = `SELECT value from store where key = ?`;
       const row = await executeDbCommand(sql, [argvs[0]], "get");
       if(!row){
-        process.stdout.write("404 not found.");
+        process.stdout.write("404 not found.\n");
         return;
       }
       process.stdout.write(`${row.value}\n`);
